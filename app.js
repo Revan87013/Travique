@@ -44,11 +44,13 @@ main().then(()=>{
 });
 
 async function main() {
-    await mongoose.connect('mongodb://127.0.0.1:27017/travique');
+    const dbUrl = process.env.ATLASDB_URL || 'mongodb://127.0.0.1:27017/travique';
+    await mongoose.connect(dbUrl);
 };
 
-app.listen(8080,(req,res)=>{
-    console.log('App is Listening at port 8080');
+const PORT = process.env.PORT || 8080;
+app.listen(PORT,(req,res)=>{
+    console.log(`App is Listening at port ${PORT}`);
 });
 
 
