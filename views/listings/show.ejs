@@ -16,9 +16,9 @@
                 <p><b>&#8377 <%= list.price.toLocaleString('en-IN')%> </b></p>
                 <p><%= list.location %> </p>
                 <p><%= list.country %></p>
-                <p><b>Creater:</b>@<%= list.owner.username%>  &nbsp &nbsp &nbsp &nbsp <b>category:</b><%= list.category %></p>
+                <p><b>Creator:</b>@<%= list.owner && list.owner.username ? list.owner.username : 'Unknown User' %>  &nbsp &nbsp &nbsp &nbsp <b>category:</b><%= list.category %></p>
               </p>
-              <%if(curruser && curruser._id.equals(list.owner._id)) {%>
+              <%if(curruser && list.owner && curruser._id.equals(list.owner._id)) {%>
                 <div class="row">
                   <div class="col-3">
                       <form method="GET" action="/listings/<%= list._id %>/edit">

@@ -1,7 +1,21 @@
 const listing=require('../models/listing');
 const mbxGeoCoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken=process.env.mapToken;
-const geocodingClient=mbxGeoCoding({ accessToken: mapToken});
+
+// Initialize geocoding client only if mapToken is available and valid
+let geocodingClient;
+if (mapToken && mapToken.startsWith('pk.') && mapToken !== 'YOUR_MAPBOX_ACCESS_TOKEN_HERE' && mapToken !== 'pk.test_token_1234567890abcdef') {
+    try {
+        geocodingClient = mbxGeoCoding({ accessToken: mapToken });
+        console.log('Mapbox geocoding client initialized successfully');
+    } catch (error) {
+        console.warn('Warning: Failed to initialize Mapbox client:', error.message);
+        geocodingClient = null;
+    }
+} else {
+    console.warn('Warning: Valid Mapbox token not found. Geocoding features will be disabled.');
+    console.warn('Please set a valid Mapbox token in your .env file.');
+}
 
 module.exports.RenderIndexPage=async(req,res)=>{
     let {Search,category}=req.query;
@@ -66,11 +80,27 @@ module.exports.RenderNewPage=(req,res)=>{
 };
 
 module.exports.CreateNewList=async(req,res)=>{
-    let responce=await geocodingClient
-    .forwardGeocode({
-        query: req.body.listing.location+','+req.body.listing.country,
-        limit: 1
-    }).send();
+    let coordinates = [0, 0]; // Default coordinates
+    
+    // Only use geocoding if client is available
+    if (geocodingClient) {
+        try {
+            let responce=await geocodingClient
+            .forwardGeocode({
+                query: req.body.listing.location+','+req.body.listing.country,
+                limit: 1
+            }).send();
+            
+            if (responce.body.features && responce.body.features.length > 0) {
+                coordinates = responce.body.features[0].geometry.coordinates;
+            }
+        } catch (error) {
+            console.warn('Geocoding failed:', error.message);
+            // Continue with default coordinates
+        }
+    } else {
+        console.warn('Geocoding unavailable: using default coordinates');
+    }
 
     let url=req.file.path;
     let filename=req.file.filename;
@@ -78,7 +108,10 @@ module.exports.CreateNewList=async(req,res)=>{
     newList.owner=req.user._id;
     //Extracting the URL
     newList.image={filename,url};
-    newList.geometry=responce.body.features[0].geometry;
+    newList.geometry={
+        type: "Point",
+        coordinates: coordinates
+    };
     let list=new listing(newList);
     await list.save();
     req.flash('success','new Listing Created');
@@ -94,15 +127,36 @@ module.exports.RenderEditPage=async(req,res)=>{
 
 module.exports.EditPage=async(req,res)=>{
     //geting Coordinates
-    let responce=await geocodingClient
-    .forwardGeocode({
-        query: req.body.listing.location+','+req.body.listing.country,
-        limit: 1
-    }).send();
+    let coordinates = [0, 0]; // Default coordinates
+    
+    // Only use geocoding if client is available
+    if (geocodingClient) {
+        try {
+            let responce=await geocodingClient
+            .forwardGeocode({
+                query: req.body.listing.location+','+req.body.listing.country,
+                limit: 1
+            }).send();
+            
+            if (responce.body.features && responce.body.features.length > 0) {
+                coordinates = responce.body.features[0].geometry.coordinates;
+            }
+        } catch (error) {
+            console.warn('Geocoding failed:', error.message);
+            // Continue with default coordinates
+        }
+    } else {
+        console.warn('Geocoding unavailable: using default coordinates');
+    }
+    
     //Update List
     let {id}=req.params;
     let newListing=req.body;
     let data=newListing.listing;
+    data.geometry = {
+        type: "Point",
+        coordinates: coordinates
+    };
     let Listing = await listing.findByIdAndUpdate(id,{...data});
     if(typeof req.file!="undefined"){
         let url=req.file.path;
@@ -111,7 +165,10 @@ module.exports.EditPage=async(req,res)=>{
         await Listing.save();
     }
     //Update coordinates
-    Listing.geometry=responce.body.features[0].geometry;
+    Listing.geometry = {
+        type: "Point",
+        coordinates: coordinates
+    };
     await Listing.save();
     req.flash('success','Listing Updated');
     res.redirect(`/listings/${id}`);
@@ -129,5 +186,18 @@ module.exports.RenderShowPage=async(req,res)=>{
     const list=await listing.findById(id)
     .populate({path:'reviews',populate:{path:'owner'}})
     .populate('owner');
+    
+    // Check if listing exists
+    if (!list) {
+        req.flash('error', 'Listing not found');
+        return res.redirect('/listings');
+    }
+    
+    // Ensure owner is populated or provide default
+    if (!list.owner) {
+        console.warn(`Warning: Listing ${id} has no owner`);
+        list.owner = { username: 'Unknown User' };
+    }
+    
     res.render('listings/show.ejs',{ list });
 };
