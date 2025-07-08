@@ -25,12 +25,12 @@ app.set('views',path.join(__dirname,'views'));
 app.use(express.static(path.join(__dirname,'public')));
 
 const sessionOptions={
-    secret: process.env.SESSION_SECRET || 'mysecretcode',
+    secret: process.env.SESSION_SECRET || process.env.SECRET || 'mysecretcode',
     resave:false,
     saveUninitialized:true,
     cookie:{
-        expires:Date.now()+1000+60*60*24*3,
-        maxAge:1000+60*60*24*3,
+        expires:Date.now()+1000*60*60*24*3, // Fixed: added missing multiplication
+        maxAge:1000*60*60*24*3, // Fixed: added missing multiplication
         httpOnly:true
     }
 }
@@ -49,10 +49,6 @@ async function main() {
 };
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT,(req,res)=>{
-    console.log(`App is Listening at port ${PORT}`);
-});
-
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -92,4 +88,8 @@ app.use((err,req,res,next)=>{
         res.status(status).send('Invalid URL');
     }
     else res.render('listings/error.ejs',{err});
+});
+
+app.listen(PORT,(req,res)=>{
+    console.log(`App is Listening at port ${PORT}`);
 });
