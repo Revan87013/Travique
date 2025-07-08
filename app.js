@@ -1,4 +1,4 @@
-if(process.env.NODE_ENV!='Production'){
+if(process.env.NODE_ENV !== 'production'){
     require('dotenv').config();
 }
 const express=require('express');
@@ -79,7 +79,11 @@ app.use('/listings/:id/review/',reviewroute);
 
 //Error Validation
 app.all('*',(req,res,next)=>{
-    res.render('listings/error.ejs');
+    const err = {
+        message: 'Page Not Found',
+        status: 404
+    };
+    res.render('listings/error.ejs', {err});
 });
 
 app.use((err,req,res,next)=>{

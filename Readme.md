@@ -64,7 +64,7 @@ Before you begin, ensure you have the following installed:
 - [MongoDB](https://www.mongodb.com/) (v4.0 or higher)
 - [Git](https://git-scm.com/)
 
-### Installation
+### Installationy
 
 1. **Clone the repository**
    ```bash
